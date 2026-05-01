@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>미디어 세그먼트 다운로더</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .container { width: 100%; max-width: 800px; }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #7dd3fc;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #38bdf8; }
+
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    .row { display: flex; gap: 0.75rem; }
+    .row > .field { flex: 1; }
+
+    .hint { font-size: 0.72rem; color: #475569; margin-top: 0.3rem; }
+
+    .btn-row { display: flex; gap: 0.6rem; margin-top: 0.25rem; }
+
+    button {
+      padding: 0.65rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    .btn-primary { background: #0284c7; color: #fff; flex: 1; }
+    .btn-primary:not(:disabled):hover { background: #0369a1; }
+
+    .btn-danger { background: #b91c1c; color: #fff; }
+    .btn-danger:not(:disabled):hover { background: #991b1b; }
+
+    .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.78rem; border-radius: 6px; }
+
+    .btn-copy { background: #15803d; color: #fff; }
+    .btn-copy:not(:disabled):hover { background: #166534; }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .badge-idle    { background: #1e293b; color: #64748b; }
+    .badge-running { background: #1d4ed8; color: #bfdbfe; }
+    .badge-done    { background: #15803d; color: #bbf7d0; }
+    .badge-error   { background: #b91c1c; color: #fecaca; }
+    .badge-stopped { background: #78350f; color: #fde68a; }
+
+    .progress-bar-wrap {
+      background: #0f1117;
+      border-radius: 99px;
+      height: 6px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #0284c7;
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .log-box {
+      background: #0a0c12;
+      border: 1px solid #1e2130;
+      border-radius: 8px;
+      padding: 0.85rem;
+      height: 220px;
+      overflow-y: auto;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.65;
+    }
+
+    .log-line { white-space: pre-wrap; word-break: break-all; }
+    .log-ok      { color: #4ade80; }
+    .log-skip    { color: #38bdf8; }
+    .log-err     { color: #f87171; }
+    .log-sys     { color: #94a3b8; }
+    .log-done    { color: #34d399; font-weight: bold; }
+    .log-stopped { color: #fbbf24; }
+    .log-ready   { color: #38bdf8; }
+
+    .divider { border: none; border-top: 1px solid #2d3348; margin: 0.85rem 0; }
+
+    .job-card { border-color: #3d4460; }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.85rem;
+    }
+
+    .job-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #7dd3fc;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    .job-controls { display: flex; gap: 0.5rem; align-items: center; }
+
+    .cmd-box {
+      background: #0a0c12;
+      border: 1px solid #1e2130;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      margin-top: 0.75rem;
+      min-height: 4.8rem;
+      padding: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    #jobs-container { margin-top: 0; }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 1px solid #2d3348; }
+    .tab-btn {
+      padding: 0.5rem 1.1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #64748b;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      border-radius: 0;
+    }
+    .tab-btn:hover { color: #94a3b8; }
+    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>미디어 세그먼트 다운로더</h1>
+
+  <!-- 입력 폼 -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-template" onclick="switchTab('template')">번호 템플릿</button>
+      <button class="tab-btn" id="tab-m3u8" onclick="switchTab('m3u8')">m3u8</button>
+    </div>
+
+    <!-- 번호 템플릿 모드 -->
+    <div id="mode-template">
+      <div class="field">
+        <label>URL 템플릿</label>
+        <input type="text" id="url_template" placeholder="https://example.com/seg-{}-v1-a1.ts">
+        <div class="hint">순번 위치에 <code style="color:#7dd3fc">{}</code> 또는 <code style="color:#7dd3fc">{:06d}</code> 사용 / 파일명은 <code style="color:#7dd3fc">index{N}.ts</code> 고정</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>시작 번호</label>
+          <input type="number" id="start" value="1" min="0">
+        </div>
+        <div class="field">
+          <label>끝 번호</label>
+          <input type="number" id="end" value="100" min="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- m3u8 모드 -->
+    <div id="mode-m3u8" style="display:none">
+      <div class="field">
+        <label>m3u8 URL</label>
+        <input type="text" id="m3u8_url" placeholder="https://example.com/hls/playlist.m3u8">
+        <div class="hint">세그먼트 목록을 자동 파싱 / 파일명은 <code style="color:#7dd3fc">index{N}.ts</code> 고정</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="field">
+      <label>저장 폴더</label>
+      <input type="text" id="output_folder" value="./downloads">
+    </div>
+
+    <div class="field">
+      <label>User-Agent</label>
+      <input type="text" id="user_agent"
+        value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36">
+    </div>
+
+    <div class="field">
+      <label>Referer <span style="color:#475569;font-weight:400;text-transform:none">(선택)</span></label>
+      <input type="text" id="referer" placeholder="https://example.com/">
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn-primary" id="btn-start" onclick="startDownload()">다운로드 시작</button>
+    </div>
+  </div>
+
+  <!-- 작업 목록 -->
+  <div id="jobs-container"></div>
+</div>
+
+<script>
+  const evtSources = {};
+  const jobHadError = {};
+  let currentTab = 'template';
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('mode-template').style.display = tab === 'template' ? '' : 'none';
+    document.getElementById('mode-m3u8').style.display     = tab === 'm3u8'     ? '' : 'none';
+    document.getElementById('tab-template').classList.toggle('active', tab === 'template');
+    document.getElementById('tab-m3u8').classList.toggle('active',     tab === 'm3u8');
+  }
+
+  function createJobCard(jobId) {
+    const container = document.getElementById('jobs-container');
+    const card = document.createElement('div');
+    card.className = 'card job-card';
+    card.id = `job-${jobId}`;
+    card.innerHTML = `
+      <div class="job-header">
+        <span class="job-title">작업 #${jobId}</span>
+        <div class="job-controls">
+          <span class="badge badge-running" id="dl-badge-${jobId}">실행 중</span>
+          <button class="btn-danger btn-sm" id="btn-stop-${jobId}" onclick="stopJob('${jobId}')">중단</button>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="dl-bar-${jobId}"></div>
+      </div>
+      <div class="log-box" id="log-${jobId}"></div>
+
+      <div id="convert-section-${jobId}" style="display:none">
+        <hr class="divider">
+        <div class="progress-header">
+          <span style="font-size:0.8rem;color:#94a3b8">ffmpeg 명령문</span>
+          <button class="btn-copy btn-sm" id="btn-copy-${jobId}" onclick="copyFfmpegCmd('${jobId}')">복사</button>
+        </div>
+        <div class="cmd-box" id="ffmpeg-cmd-${jobId}"></div>
+      </div>
+    `;
+    container.prepend(card);
+  }
+
+  function setBadge(id, text, cls) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'badge ' + cls;
+  }
+
+  function appendLog(containerId, text, cls) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const line = document.createElement('div');
+    line.className = 'log-line ' + (cls || '');
+    line.textContent = text;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function setBar(jobId, pct) {
+    const el = document.getElementById(`dl-bar-${jobId}`);
+    if (el) el.style.width = Math.min(pct, 100) + '%';
+  }
+
+  async function startDownload() {
+    const common = {
+      output_folder: document.getElementById('output_folder').value.trim(),
+      user_agent:    document.getElementById('user_agent').value.trim(),
+      referer:       document.getElementById('referer').value.trim(),
+    };
+
+    let payload;
+    if (currentTab === 'm3u8') {
+      const m3u8Url = document.getElementById('m3u8_url').value.trim();
+      if (!m3u8Url) { alert('m3u8 URL을 입력하세요.'); return; }
+      payload = { ...common, m3u8_url: m3u8Url };
+    } else {
+      const urlTemplate = document.getElementById('url_template').value.trim();
+      if (!urlTemplate) { alert('URL 템플릿을 입력하세요.'); return; }
+      payload = {
+        ...common,
+        url_template: urlTemplate,
+        start:        parseInt(document.getElementById('start').value),
+        end:          parseInt(document.getElementById('end').value),
+      };
+    }
+
+    let data;
+    try {
+      const res = await fetch('/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      data = await res.json();
+    } catch (err) {
+      alert('서버 오류: ' + err.message);
+      return;
+    }
+
+    if (data.error) { alert(data.error); return; }
+
+    const jobId = data.job_id;
+    jobHadError[jobId] = false;
+    createJobCard(jobId);
+    listenDownload(jobId);
+  }
+
+  function listenDownload(jobId) {
+    if (evtSources[jobId]) evtSources[jobId].close();
+    const es = new EventSource(`/stream/${jobId}`);
+    evtSources[jobId] = es;
+
+    es.onmessage = (e) => {
+      const msg = e.data;
+      if (msg === 'PING') return;
+
+      if (msg === 'DONE') {
+        es.close();
+        setBadge(
+          `dl-badge-${jobId}`,
+          jobHadError[jobId] ? '오류' : '완료',
+          jobHadError[jobId] ? 'badge-error' : 'badge-done'
+        );
+        const btn = document.getElementById(`btn-stop-${jobId}`);
+        if (btn) btn.remove();
+        if (!jobHadError[jobId]) setBar(jobId, 100);
+        return;
+      }
+
+      if (msg === 'STOPPED') {
+        es.close();
+        setBadge(`dl-badge-${jobId}`, '중단됨', 'badge-stopped');
+        const btn = document.getElementById(`btn-stop-${jobId}`);
+        if (btn) btn.remove();
+        appendLog(`log-${jobId}`, '다운로드가 중단되었습니다.', 'log-stopped');
+        return;
+      }
+
+      if (msg.startsWith('FFMPEG_CMD|')) {
+        const cmd = msg.slice('FFMPEG_CMD|'.length);
+        const sec = document.getElementById(`convert-section-${jobId}`);
+        if (sec) sec.style.display = 'block';
+        const cmdBox = document.getElementById(`ffmpeg-cmd-${jobId}`);
+        if (cmdBox) cmdBox.textContent = cmd;
+        appendLog(`log-${jobId}`, 'ffmpeg 명령문이 생성되었습니다. 콘솔에서 실행하세요.', 'log-ready');
+        return;
+      }
+
+      if (msg === 'JOB_ERROR') {
+        jobHadError[jobId] = true;
+        setBadge(`dl-badge-${jobId}`, '오류', 'badge-error');
+        return;
+      }
+
+      if (msg.startsWith('SYS|')) {
+        appendLog(`log-${jobId}`, msg.slice(4), 'log-sys');
+        return;
+      }
+
+      if (msg.startsWith('OK|')) {
+        const [, cur, end, filename] = msg.split('|');
+        setBar(jobId, (parseInt(cur) / parseInt(end)) * 100);
+        appendLog(`log-${jobId}`, `[${cur}/${end}] ${filename}`, 'log-ok');
+        return;
+      }
+
+      if (msg.startsWith('SKIP|')) {
+        const [, cur, end, filename] = msg.split('|');
+        setBar(jobId, (parseInt(cur) / parseInt(end)) * 100);
+        appendLog(`log-${jobId}`, `[${cur}/${end}] ${filename} (건너뜀)`, 'log-skip');
+        return;
+      }
+
+      if (msg.startsWith('ERR|')) {
+        const parts = msg.split('|');
+        const cur = parts[1], end = parts[2], detail = parts.slice(3).join('|');
+        setBar(jobId, (parseInt(cur) / parseInt(end)) * 100);
+        appendLog(`log-${jobId}`, `[${cur}/${end}] 실패: ${detail}`, 'log-err');
+        return;
+      }
+
+      appendLog(`log-${jobId}`, msg, 'log-sys');
+    };
+
+    es.onerror = () => {
+      es.close();
+      setBadge(`dl-badge-${jobId}`, '연결 오류', 'badge-error');
+      const btn = document.getElementById(`btn-stop-${jobId}`);
+      if (btn) btn.remove();
+    };
+  }
+
+  async function stopJob(jobId) {
+    const btn = document.getElementById(`btn-stop-${jobId}`);
+    if (btn) btn.disabled = true;
+    await fetch(`/stop/${jobId}`, { method: 'POST' });
+  }
+
+  async function copyFfmpegCmd(jobId) {
+    const cmdBox = document.getElementById(`ffmpeg-cmd-${jobId}`);
+    const btn = document.getElementById(`btn-copy-${jobId}`);
+    if (!cmdBox || !cmdBox.textContent) return;
+
+    try {
+      await navigator.clipboard.writeText(cmdBox.textContent);
+      if (btn) {
+        const original = btn.textContent;
+        btn.textContent = '복사됨';
+        setTimeout(() => { btn.textContent = original; }, 1200);
+      }
+    } catch (err) {
+      alert('복사 실패: ' + err.message);
+    }
+  }
+</script>
+</body>
+</html>
