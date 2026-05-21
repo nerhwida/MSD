@@ -15,6 +15,9 @@ Flask 기반의 미디어 세그먼트 다운로더입니다. 번호가 붙은 �
 - 중단 후 자동 이어받기
   - 작업 폴더의 `job.json`을 기준으로 같은 작업을 찾습니다.
   - 이미 존재하고 크기가 0보다 큰 `indexN.ts` 파일은 건너뜁니다.
+- AES-128 암호화 자동 복호화
+  - `#EXT-X-KEY:METHOD=AES-128` 태그를 감지하면 자동으로 복호화하여 저장합니다.
+  - `pycryptodome` 패키지가 필요합니다.
 - 다운로드 완료 후 `ffmpeg` 명령문 생성
   - 서버에서 ffmpeg를 직접 실행하지 않습니다.
   - 생성된 명령문을 복사해서 콘솔에서 직접 실행합니다.
@@ -24,13 +27,23 @@ Flask 기반의 미디어 세그먼트 다운로더입니다. 번호가 붙은 �
 - Python 3.10+
 - Flask
 - requests
+- pycryptodome
+  - AES-128 암호화된 세그먼트 자동 복호화에 필요합니다.
+- wasmtime (선택)
+  - level7.wasm 기반 특수 복호화가 필요한 경우에만 사용합니다.
 - ffmpeg
   - MP4 변환 명령을 실행하려면 별도로 설치되어 있어야 합니다.
 
 ## Installation
 
 ```bash
-pip install flask requests
+pip install flask requests pycryptodome
+```
+
+wasmtime이 필요한 경우:
+
+```bash
+pip install wasmtime
 ```
 
 ffmpeg는 운영체제에 맞게 설치하고, 터미널에서 아래 명령이 동작하는지 확인하세요.
@@ -95,6 +108,7 @@ downloads/
     index2.ts
     index3.ts
     file_list.txt
+    ffmpeg.txt
 ```
 
 파일 설명:
@@ -102,8 +116,9 @@ downloads/
 - `job.json`: 자동 이어받기용 작업 메타데이터
 - `playlist.m3u8`: 입력한 m3u8 원본
 - `playlist_1.m3u8`: master playlist가 참조한 하위 playlist
-- `indexN.ts`: 다운로드된 세그먼트 파일
+- `indexN.ts`: 다운로드된 세그먼트 파일 (AES-128인 경우 복호화된 상태로 저장)
 - `file_list.txt`: ffmpeg concat 입력 파일
+- `ffmpeg.txt`: ffmpeg 실행 명령어
 
 번호 템플릿 모드에서는 m3u8 파일이 생성되지 않습니다.
 
