@@ -267,6 +267,11 @@
       <input type="text" id="referer" placeholder="https://example.com/">
     </div>
 
+    <div class="field">
+      <label>Cookie <span style="color:#475569;font-weight:400;text-transform:none">(선택 — AES 키 서버 인증에 필요할 수 있음)</span></label>
+      <input type="text" id="cookie" placeholder="name=value; name2=value2">
+    </div>
+
     <div class="btn-row" style="margin-top:1rem">
       <button class="btn-primary" id="btn-start" onclick="startDownload()">다운로드 시작</button>
     </div>
@@ -346,13 +351,17 @@
       output_folder: document.getElementById('output_folder').value.trim(),
       user_agent:    document.getElementById('user_agent').value.trim(),
       referer:       document.getElementById('referer').value.trim(),
+      cookie:        document.getElementById('cookie').value.trim(),
     };
 
     let payload;
     if (currentTab === 'm3u8') {
       const m3u8Url = document.getElementById('m3u8_url').value.trim();
       if (!m3u8Url) { alert('m3u8 URL을 입력하세요.'); return; }
-      payload = { ...common, m3u8_url: m3u8Url };
+      payload = {
+        ...common,
+        m3u8_url: m3u8Url,
+      };
     } else {
       const urlTemplate = document.getElementById('url_template').value.trim();
       if (!urlTemplate) { alert('URL 템플릿을 입력하세요.'); return; }
